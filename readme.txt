@@ -1,3 +1,6 @@
+I have left the data files out to reduce the size of the file to run any of the scripts please download the files from kaggle and put them in the input directory
+
+
 Python Libraries needed:
 
 pip install kaggle
@@ -6,6 +9,12 @@ pip install lightgbm
 pip install sklearn
 pip install matplotlib
 pip install seaborn
+
+cd scripts
+python simple_model_with_all_tables_training.py
+
+python simple_model_with_all_tables_scoring.py
+
 
 
 Jar to create PPML file from model file
