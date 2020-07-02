@@ -1,5 +1,3 @@
-I have left the data files out to reduce the size of the file to run any of the scripts please download the files from kaggle and put them in the input directory
-
 
 Python Libraries needed:
 
@@ -10,6 +8,15 @@ pip install sklearn
 pip install matplotlib
 pip install seaborn
 
+I have left the data files out to reduce the size of the file to run any of the scripts please download the files from kaggle and put them in the input directory
+
+https://www.kaggle.com/c/home-credit-default-risk/data
+
+kaggle competitions download -c home-credit-default-risk
+
+
+
+Scripts can be ran using the following commands
 cd scripts
 python simple_model_with_all_tables_training.py
 

@@ -1,5 +1,3 @@
-# Basic Kernel or reference: https://www.kaggle.com/kailex/tidy-xgb-0-778/code
-
 import numpy as np
 import pandas as pd
 import gc
@@ -15,120 +13,134 @@ print("Loading data...\n")
 lb = LabelEncoder()
 
 
-def LabelEncoding_Cat(df):
+def LabelEncodingCategory(df):
     df = df.copy()
-    Cat_Var = df.select_dtypes("object").columns.tolist()
-    for col in Cat_Var:
+    category_variables = df.select_dtypes("object").columns.tolist()
+    for col in category_variables:
         df[col] = lb.fit_transform(df[col].astype("str"))
     return df
 
 
-def Fill_NA(df):
+def FillNA(df):
     df = df.copy()
     Num_Features = df.select_dtypes(["float64", "int64"]).columns.tolist()
     df[Num_Features] = df[Num_Features].fillna(-999)
     return df
 
 
-bureau = pd.read_csv("../input/bureau.csv").pipe(LabelEncoding_Cat)
+# pull in data from csvs
+bureau = pd.read_csv("../input/bureau.csv").pipe(LabelEncodingCategory)
 
-cred_card_bal = pd.read_csv("../input/credit_card_balance.csv").pipe(LabelEncoding_Cat)
+creditCardBal = pd.read_csv("../input/credit_card_balance.csv").pipe(
+    LabelEncodingCategory
+)
 
-pos_cash_bal = pd.read_csv("../input/POS_CASH_balance.csv").pipe(LabelEncoding_Cat)
+posCashBal = pd.read_csv("../input/posCashBalance.csv").pipe(LabelEncodingCategory)
 
-prev = pd.read_csv("../input/previous_application.csv").pipe(LabelEncoding_Cat)
+previousApp = pd.read_csv("../input/previous_application.csv").pipe(
+    LabelEncodingCategory
+)
 
 print("Preprocessing...\n")
-Label_1 = [
+
+# creating new features
+labels1 = [
     s + "_" + l
     for s in bureau.columns.tolist()
     if s != "SK_ID_CURR"
     for l in ["mean", "count", "median", "max"]
 ]
-avg_bureau = (
+avgBureau = (
     bureau.groupby("SK_ID_CURR").agg(["mean", "count", "median", "max"]).reset_index()
 )
-avg_bureau.columns = ["SK_ID_CURR"] + Label_1
+avgBureau.columns = ["SK_ID_CURR"] + labels1
 
-Label_2 = [
+labels2 = [
     s + "_" + l
-    for s in cred_card_bal.columns.tolist()
+    for s in creditCardBal.columns.tolist()
     if s != "SK_ID_CURR"
     for l in ["mean", "count", "median", "max"]
 ]
-avg_cred_card_bal = (
-    cred_card_bal.groupby("SK_ID_CURR")
+avgCreditCardBal = (
+    creditCardBal.groupby("SK_ID_CURR")
     .agg(["mean", "count", "median", "max"])
     .reset_index()
 )
-avg_cred_card_bal.columns = ["SK_ID_CURR"] + Label_2
+avgCreditCardBal.columns = ["SK_ID_CURR"] + labels2
 
-Label_3 = [
+labels3 = [
     s + "_" + l
-    for s in pos_cash_bal.columns.tolist()
+    for s in posCashBal.columns.tolist()
     if s not in ["SK_ID_PREV", "SK_ID_CURR"]
     for l in ["mean", "count", "median", "max"]
 ]
-avg_pos_cash_bal = (
-    pos_cash_bal.groupby(["SK_ID_PREV", "SK_ID_CURR"])
+avgPosCashBal = (
+    posCashBal.groupby(["SK_ID_PREV", "SK_ID_CURR"])
     .agg(["mean", "count", "median", "max"])
     .groupby(level="SK_ID_CURR")
     .agg("mean")
     .reset_index()
 )
-avg_pos_cash_bal.columns = ["SK_ID_CURR"] + Label_3
+avgPosCashBal.columns = ["SK_ID_CURR"] + labels3
 
-Label_4 = [
+labels4 = [
     s + "_" + l
-    for s in prev.columns.tolist()
+    for s in previousApp.columns.tolist()
     if s != "SK_ID_CURR"
     for l in ["mean", "count", "median", "max"]
 ]
-avg_prev = (
-    prev.groupby("SK_ID_CURR").agg(["mean", "count", "median", "max"]).reset_index()
+avgPreviousApp = (
+    previousApp.groupby("SK_ID_CURR")
+    .agg(["mean", "count", "median", "max"])
+    .reset_index()
 )
-avg_prev.columns = ["SK_ID_CURR"] + Label_4
+avgPreviousApp.columns = ["SK_ID_CURR"] + labels4
 
-del (Label_1, Label_2, Label_3, Label_4)
+del (labels1, labels2, labels3, labels4)
+
+# read in data for running scorring on test data
 te = pd.read_csv("../input/application_test.csv")
 
 tri = te.shape[0]
 
-te_labeled = (
-    te.pipe(LabelEncoding_Cat)
-    .pipe(Fill_NA)
-    .merge(avg_bureau, on="SK_ID_CURR", how="left")
-    .merge(avg_cred_card_bal, on="SK_ID_CURR", how="left")
-    .merge(avg_pos_cash_bal, on="SK_ID_CURR", how="left")
+# cleaning data for input into model
+teLabeled = (
+    te.pipe(LabelEncodingCategory)
+    .pipe(FillNA)
+    .merge(avgBureau, on="SK_ID_CURR", how="left")
+    .merge(avg_creditCardBal, on="SK_ID_CURR", how="left")
+    .merge(avg_posCashBal, on="SK_ID_CURR", how="left")
     .merge(avg_prev, on="SK_ID_CURR", how="left")
 )
 
+# cleaning up memory
 del (
     bureau,
-    cred_card_bal,
-    pos_cash_bal,
-    prev,
-    avg_prev,
-    avg_bureau,
-    avg_cred_card_bal,
-    avg_pos_cash_bal,
+    creditCardBal,
+    posCashBal,
+    previousApp,
+    avgPreviousApp,
+    avgBureau,
+    avgCreditCardBal,
+    avgPosCashBal,
 )
 gc.collect()
 
 print("Preparing data...\n")
-te_labeled.drop(labels=["SK_ID_CURR"], axis=1, inplace=True)
+teLabeled.drop(labels=["SK_ID_CURR"], axis=1, inplace=True)
 
 print("Scoring ...\n")
 
-
+# loading model from pickeled file
 with open("../pickle/risk_model.pickle", "rb") as handle:
-    m_gmm_pickle = pickle.load(handle)
+    mGmmPickle = pickle.load(handle)
 
-oof_preds_pickle_test = np.zeros(te_labeled.shape[0])
+oofPredsPickleTest = np.zeros(te_labeled.shape[0])
 
-oof_preds_pickle_test = m_gmm_pickle.predict(te_labeled)
+# scoring data
+oofPredsPickleTest = mGmmPickle.predict(te_labeled)
 
 
 print("Output data")
-te["TARGET_oof"] = oof_preds_pickle_test.copy()
+te["TARGET_oof"] = oofPredsPickleTest.copy()
 te.to_csv("../output/application_test_with_output.csv", index=False)
